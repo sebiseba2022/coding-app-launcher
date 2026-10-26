@@ -83,6 +83,14 @@ class FloatingGifSplash:
         self.root.attributes("-topmost", True)
         self.root.configure(bg="#000000")
 
+        # Setează iconița dacă fișierul coding_begin.ico există
+        ico_file = resource_path("coding_begin.ico")
+        if os.path.exists(ico_file):
+            try:
+                self.root.iconbitmap(ico_file)
+            except Exception:
+                pass
+
         # Încărcare cadre GIF animat
         self.gif_path = resource_path("coding_begin.gif")
         self.frames = []

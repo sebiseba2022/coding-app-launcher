@@ -27,6 +27,7 @@ def resource_path(relative_path):
 
 CONFIG_FILE = os.path.join(BASE_DIR, "launcher_config.json")
 DEFAULT_GIF = resource_path("coding_begin.gif")
+DEFAULT_ICO = resource_path("coding_begin.ico")
 
 # ==============================================================================
 # UTILITARE SCANARE WINDOWS & PROFILURI BROWSER
@@ -220,6 +221,14 @@ def main():
     root.attributes("-topmost", True)
     root.configure(bg="#000000")
 
+    ico_filename = os.path.basename(CONFIG.get("icon_path", "coding_begin.ico"))
+    ico_file = resource_path(ico_filename)
+    if os.path.exists(ico_file):
+        try:
+            root.iconbitmap(ico_file)
+        except Exception:
+            pass
+
     gif_filename = os.path.basename(CONFIG.get("gif_path", "coding_begin.gif"))
     gif_file = resource_path(gif_filename)
 
@@ -281,6 +290,13 @@ class LauncherBuilderApp:
         self.root.minsize(980, 640)
         self.root.configure(bg="#12131a")
 
+        # Iconiță fereastră builder
+        if os.path.exists(DEFAULT_ICO):
+            try:
+                self.root.iconbitmap(DEFAULT_ICO)
+            except Exception:
+                pass
+
         # Stare internă
         self.scanned_apps = []
         self.browser_profiles = []
@@ -289,6 +305,7 @@ class LauncherBuilderApp:
         self.config = {
             "exe_name": "custom_launcher",
             "gif_path": DEFAULT_GIF,
+            "icon_path": DEFAULT_ICO if os.path.exists(DEFAULT_ICO) else "coding_begin.ico",
             "duration_seconds": 3.0,
             "apps": []
         }
@@ -733,6 +750,47 @@ class LauncherBuilderApp:
         self.duration_spin.pack(side="left", padx=6)
         tk.Label(dur_row, text="secunde", font=("Segoe UI", 9), fg="#9CA3AF", bg="#181a24").pack(side="left")
 
+        # Iconiță Executabil (.ico)
+        ico_row = tk.Frame(gif_box, bg="#181a24")
+        ico_row.pack(fill="x", pady=(6, 0))
+        tk.Label(ico_row, text="Iconiță Executabil (.ico):", font=("Segoe UI", 9), fg="#9CA3AF", bg="#181a24").pack(side="left")
+        self.ico_path_lbl = tk.Label(
+            ico_row,
+            text=os.path.basename(self.config.get("icon_path", "coding_begin.ico")),
+            font=("Segoe UI", 9, "bold"),
+            fg="#60A5FA",
+            bg="#181a24"
+        )
+        self.ico_path_lbl.pack(side="left", padx=6)
+
+        btn_pick_ico = tk.Button(
+            ico_row,
+            text="Schimbă .ico...",
+            font=("Segoe UI", 8),
+            bg="#374151",
+            fg="white",
+            bd=0,
+            padx=8,
+            pady=2,
+            cursor="hand2",
+            command=self.pick_custom_ico
+        )
+        btn_pick_ico.pack(side="left")
+
+        btn_reset_ico = tk.Button(
+            ico_row,
+            text="Reset la coding_begin.ico",
+            font=("Segoe UI", 8),
+            bg="#1F2937",
+            fg="#9CA3AF",
+            bd=0,
+            padx=6,
+            pady=2,
+            cursor="hand2",
+            command=self.reset_default_ico
+        )
+        btn_reset_ico.pack(side="left", padx=4)
+
         # 3. Bară finală: Testare & Build Executabil (.exe)
         build_box = tk.Frame(parent, bg="#12131a")
         build_box.pack(fill="x", pady=(5, 0))
@@ -997,6 +1055,19 @@ class LauncherBuilderApp:
         self.config["gif_path"] = DEFAULT_GIF
         self.update_gif_preview()
 
+    def pick_custom_ico(self):
+        chosen = filedialog.askopenfilename(
+            title="Alege iconiță (.ico)",
+            filetypes=[("Iconițe Windows", "*.ico"), ("Toate fișierele", "*.*")]
+        )
+        if chosen:
+            self.config["icon_path"] = chosen
+            self.ico_path_lbl.configure(text=os.path.basename(chosen))
+
+    def reset_default_ico(self):
+        self.config["icon_path"] = DEFAULT_ICO
+        self.ico_path_lbl.configure(text=os.path.basename(DEFAULT_ICO))
+
     def update_gif_preview(self):
         gif_path = self.config.get("gif_path", DEFAULT_GIF)
         if not os.path.exists(gif_path):
@@ -1129,6 +1200,13 @@ class LauncherBuilderApp:
                 if os.path.abspath(gif_path) != os.path.abspath(local_gif):
                     shutil.copy2(gif_path, local_gif)
 
+                # Asigură că iconița este inclusă
+                ico_path = self.config.get("icon_path", DEFAULT_ICO)
+                if not os.path.isabs(ico_path):
+                    ico_path = os.path.join(BASE_DIR, ico_path)
+                if not os.path.exists(ico_path) and os.path.exists(DEFAULT_ICO):
+                    ico_path = DEFAULT_ICO
+
                 # Scrie codul runner
                 formatted_config = json.dumps(self.config, indent=2)
                 script_content = RUNNER_CODE_TEMPLATE.format(config_json=formatted_config)
@@ -1136,7 +1214,7 @@ class LauncherBuilderApp:
                     f.write(script_content)
 
                 # 2. Execută PyInstaller
-                p_status.configure(text="Rulare PyInstaller (împachetare într-un singur fișier .exe)...")
+                p_status.configure(text="Rulare PyInstaller (împachetare într-un singur fișier .exe cu iconiță)...")
                 python_bin = sys.executable
                 if getattr(sys, "frozen", False):
                     python_bin = shutil.which("python") or shutil.which("py") or "python"
@@ -1145,10 +1223,21 @@ class LauncherBuilderApp:
                     python_bin, "-m", "PyInstaller",
                     "--noconsole",
                     "--onefile",
-                    "--add-data", f"{gif_filename};.",
+                    "--add-data", f"{gif_filename};."
+                ]
+
+                if os.path.exists(ico_path):
+                    ico_filename = os.path.basename(ico_path)
+                    local_ico = os.path.join(BASE_DIR, ico_filename)
+                    if os.path.abspath(ico_path) != os.path.abspath(local_ico):
+                        shutil.copy2(ico_path, local_ico)
+                    cmd.extend(["--icon", local_ico])
+                    cmd.extend(["--add-data", f"{ico_filename};."])
+
+                cmd.extend([
                     "--name", exe_name,
                     runner_path
-                ]
+                ])
 
                 proc = subprocess.run(cmd, cwd=BASE_DIR, capture_output=True, text=True)
 
