@@ -12,9 +12,21 @@ from PIL import Image, ImageTk
 # ==============================================================================
 # CONSTANTE & CĂI
 # ==============================================================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def resource_path(relative_path):
+    """Obține calea unei resurse, căutând în _MEIPASS (PyInstaller) sau în BASE_DIR."""
+    if hasattr(sys, "_MEIPASS"):
+        meipass_p = os.path.join(sys._MEIPASS, relative_path)
+        if os.path.exists(meipass_p):
+            return meipass_p
+    return os.path.join(BASE_DIR, relative_path)
+
 CONFIG_FILE = os.path.join(BASE_DIR, "launcher_config.json")
-DEFAULT_GIF = os.path.join(BASE_DIR, "coding_begin.gif")
+DEFAULT_GIF = resource_path("coding_begin.gif")
 
 # ==============================================================================
 # UTILITARE SCANARE WINDOWS & PROFILURI BROWSER
@@ -1125,8 +1137,12 @@ class LauncherBuilderApp:
 
                 # 2. Execută PyInstaller
                 p_status.configure(text="Rulare PyInstaller (împachetare într-un singur fișier .exe)...")
+                python_bin = sys.executable
+                if getattr(sys, "frozen", False):
+                    python_bin = shutil.which("python") or shutil.which("py") or "python"
+
                 cmd = [
-                    sys.executable, "-m", "PyInstaller",
+                    python_bin, "-m", "PyInstaller",
                     "--noconsole",
                     "--onefile",
                     "--add-data", f"{gif_filename};.",

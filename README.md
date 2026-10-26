@@ -50,6 +50,7 @@ python launcher.py
 ```powershell
 python builder.py
 ```
+*sau deschide direct executabilul configurator din `dist/builder.exe`.*
 
 ---
 
